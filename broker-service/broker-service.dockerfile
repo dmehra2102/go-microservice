@@ -1,5 +1,5 @@
 # Use the official Go image as a base for building the application
-FROM golang:1.18-alpine as builder
+FROM golang:1.23.3-alpine AS builder
 
 WORKDIR /app
 
