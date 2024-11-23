@@ -1,8 +1,9 @@
-package main
+package data
 
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"time"
 
@@ -217,4 +218,18 @@ func (u *User) ResetPassword(password string) error {
 		return err
 	}
 	return nil
+}
+
+func (u *User) PassowrdMatches(plainText string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainText))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			return false, err
+		default:
+			return false, err
+		}
+	}
+
+	return true, nil
 }
