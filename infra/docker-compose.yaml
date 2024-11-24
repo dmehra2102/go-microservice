@@ -1,12 +1,11 @@
 services:
   broker-service:
-    container_name: broker-service
     build:
       context: ./../broker-service
       dockerfile: broker-service.dockerfile
     restart: always
     ports:
-      - "8080:8080"
+      - "8080:80"
     deploy:
       mode: replicated
       replicas: 1
@@ -17,7 +16,7 @@ services:
       dockerfile: authentication-service.dockerfile
     restart: always
     ports:
-      - "8081:8081"
+      - "8081:80"
     deploy:
       mode: replicated
       replicas: 1
@@ -28,6 +27,7 @@ services:
     image: "postgres:14.2"
     ports:
       - "5432:5432"
+    restart: always
     deploy:
       mode: replicated
       replicas: 1
