@@ -46,7 +46,7 @@ func main() {
 		Models: data.New(client),
 	}
 
-	go app.server()
+	app.server()
 }
 
 func (app *Config) server() {
@@ -59,6 +59,8 @@ func (app *Config) server() {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	fmt.Printf("Starting logger service on PORT %s", port)
 }
 
 func connectToMongo() (*mongo.Client, error) {

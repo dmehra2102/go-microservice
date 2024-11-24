@@ -10,6 +10,17 @@ services:
       mode: replicated
       replicas: 1
 
+  logger-service:
+    build:
+      context: ./../logger-service
+      dockerfile: logger-service.dockerfile
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - mongo
+
   authentication-service:
     build:
       context: ./../authentication-service
@@ -22,6 +33,8 @@ services:
       replicas: 1
     environment:
       DSN: "host=postgres port=5432 user=postgres password=password dbname=users sslmode=disable timezone=UTC connect_timeout=5"
+    depends_on:
+      - postgres
 
   postgres:
     image: "postgres:14.2"
