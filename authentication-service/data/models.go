@@ -14,18 +14,20 @@ const dbTimeout = time.Second * 3
 
 var db *sql.DB
 
+// New initializes the database connection pool.
 func New(dbPool *sql.DB) Models {
 	db = dbPool
-
 	return Models{
 		User: User{},
 	}
 }
 
+// Models holds all models.
 type Models struct {
 	User User
 }
 
+// User represents a user in the system.
 type User struct {
 	ID        int       `json:"id"`
 	Email     string    `json:"email"`
@@ -37,24 +39,23 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// GetAll retrieves all users from the database.
 func (u *User) GetAll() ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, created_at, updated_at from users order by last_name`
+	query := `SELECT id, email, first_name, last_name, password, user_active, created_at, updated_at FROM users ORDER BY last_name`
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	var users []*User
-
 	for rows.Next() {
 		var user User
-		err := rows.Scan(
+		if err := rows.Scan(
 			&user.ID,
 			&user.Email,
 			&user.FirstName,
@@ -63,29 +64,26 @@ func (u *User) GetAll() ([]*User, error) {
 			&user.Active,
 			&user.CreatedAt,
 			&user.UpdatedAt,
-		)
-
-		if err != nil {
-			log.Println("Error scanning", err)
+		); err != nil {
+			log.Println("Error scanning:", err)
 			return nil, err
 		}
-
 		users = append(users, &user)
 	}
 
 	return users, nil
 }
 
+// GetByEmail retrieves a user by their email.
 func (u *User) GetByEmail(email string) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, created_at, updated_at from users where email = ? limit 1`
-
+	query := `SELECT id, email, first_name, last_name, password, user_active, created_at, updated_at FROM users WHERE email = $1`
 	var user User
 	row := db.QueryRowContext(ctx, query, email)
 
-	err := row.Scan(
+	if err := row.Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -94,26 +92,28 @@ func (u *User) GetByEmail(email string) (*User, error) {
 		&user.Active,
 		&user.CreatedAt,
 		&user.UpdatedAt,
-	)
-
-	if err != nil {
-		log.Println("Error scanning", err)
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("no user found with that email")
+		}
+		log.Println("Error scanning:", err)
 		return nil, err
 	}
 
+	log.Println("Inside models.go file line 103")
 	return &user, nil
 }
 
+// GetOne retrieves a user by their ID.
 func (u *User) GetOne(id int) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, created_at, updated_at from users where id = ? limit 1`
-
+	query := `SELECT id, email, first_name, last_name, password, user_active, created_at, updated_at FROM users WHERE id = ?`
 	var user User
 	row := db.QueryRowContext(ctx, query, id)
 
-	err := row.Scan(
+	if err := row.Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -122,114 +122,98 @@ func (u *User) GetOne(id int) (*User, error) {
 		&user.Active,
 		&user.CreatedAt,
 		&user.UpdatedAt,
-	)
-
-	if err != nil {
-		log.Println("Error scanning", err)
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("no user found with that ID")
+		}
+		log.Println("Error scanning:", err)
 		return nil, err
 	}
 
 	return &user, nil
 }
 
+// Update modifies an existing user's details.
 func (u *User) Update() error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	stmt := `update users set
-		email = $1,
-		first_name = $2,
-		last_name = $3,
-		user_active = $4,
-		updated_at = $5
-		where id = $6
-	`
-
-	_, err := db.ExecContext(ctx, stmt, u.Email, u.FirstName, u.LastName, u.Active, time.Now(), u.ID)
-	if err != nil {
+	stmt := `UPDATE users SET email = ?, first_name = ?, last_name = ?, user_active = ?, updated_at = ? WHERE id = ?`
+	if _, err := db.ExecContext(ctx, stmt, u.Email, u.FirstName, u.LastName, u.Active, time.Now(), u.ID); err != nil {
+		log.Println("Error updating user:", err)
 		return err
 	}
 
 	return nil
 }
 
+// Delete removes a user from the database.
 func (u *User) Delete() error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	stmt := `delete from users where id = $1`
-
-	_, err := db.ExecContext(ctx, stmt, u.ID)
-	if err != nil {
+	stmt := `DELETE FROM users WHERE id = ?`
+	if _, err := db.ExecContext(ctx, stmt, u.ID); err != nil {
+		log.Println("Error deleting user:", err)
 		return err
 	}
 
 	return nil
 }
 
-func (u *User) DeleteByID(id int) error {
+// Insert adds a new user to the database.
+func (u *User) Insert(user User) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	stmt := `delete from users where id = $1`
-
-	_, err := db.ExecContext(ctx, stmt, u.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (u *User) Insert(user User) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
-	defer cancel()
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
 	}
 
-	var newID int
-	stmt := `insert into users (email, first_name, last_name, password, user_active, created_at, updated_at) values ($1,$2,$3,$4,$5,$6,$7) returning id`
-
-	err = db.QueryRowContext(ctx, stmt, user.Email, user.FirstName, user.LastName, hashedPassword, user.Active, time.Now(), time.Now()).Scan(&newID)
+	var newID int64
+	stmt := `INSERT INTO users (email, first_name, last_name, password, user_active, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`
+	err = db.QueryRowContext(ctx, stmt,
+		user.Email,
+		user.FirstName,
+		user.LastName,
+		hashedPassword,
+		user.Active,
+		time.Now()).Scan(&newID)
 
 	if err != nil {
+		log.Println("Error inserting new user:", err)
 		return 0, err
 	}
 
 	return newID, nil
 }
 
+// ResetPassword updates a user's password.
 func (u *User) ResetPassword(password string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	stmt := `update users set password = $1 where id = $2`
-	_, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID)
-
-	if err != nil {
+	stmt := `UPDATE users SET password = ? WHERE id = ?`
+	if _, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID); err != nil {
+		log.Println("Error resetting password:", err)
 		return err
 	}
+
 	return nil
 }
 
-func (u *User) PassowrdMatches(plainText string) (bool, error) {
+// PasswordMatches checks if the provided plain text password matches the hashed password.
+func (u *User) PasswordMatches(plainText string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainText))
-	if err != nil {
-		switch {
-		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
-			return false, err
-		default:
-			return false, err
-		}
+	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		return false, nil // Passwords do not match
 	}
 
-	return true, nil
+	return true, nil // Passwords match or other error occurred
 }

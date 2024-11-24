@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -14,24 +15,28 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	err := app.readJSON(w, r, requestPayload)
+	err := app.readJSON(w, r, &requestPayload)
 	if err != nil {
+		log.Println("inside auth handlers.go file line 20", err)
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
+	log.Println("inside auth handlers.go file line 25")
 	user, err := app.Models.User.GetByEmail(requestPayload.Email)
 	if err != nil {
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusBadRequest)
 		return
 	}
 
-	isValidPass, err := user.PassowrdMatches(requestPayload.Password)
+	log.Println("inside auth handlers.go file line 32")
+	isValidPass, err := user.PasswordMatches(requestPayload.Password)
 	if err != nil || !isValidPass {
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusBadRequest)
 		return
 	}
 
+	log.Println("inside auth handlers.go file line 39")
 	err = app.logRequest("authentication", fmt.Sprintf("%s logged in", user.Email))
 	if err != nil {
 		app.errorJSON(w, err)
@@ -44,6 +49,7 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Data:    user,
 	}
 
+	log.Println("inside auth handlers.go file line 53")
 	app.writeJSON(w, http.StatusAccepted, payload)
 }
 
@@ -57,7 +63,7 @@ func (app *Config) logRequest(name, data string) error {
 	entry.Data = data
 
 	jsonData, _ := json.MarshalIndent(entry, "", "\t")
-	logServiceURL := "http://logger-service/log"
+	logServiceURL := "http://logger-service:8080/log"
 
 	request, err := http.NewRequest("POST", logServiceURL, bytes.NewBuffer(jsonData))
 	if err != nil {

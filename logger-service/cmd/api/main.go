@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	port     = "80"
+	port     = "8080"
 	rpcPort  = "5001"
 	mongoURL = "mongodb://mongo:27017"
 	gRpcPort = "50001"
@@ -46,21 +46,18 @@ func main() {
 		Models: data.New(client),
 	}
 
-	app.server()
-}
-
-func (app *Config) server() {
+	// app.server()
+	log.Println("Starting service on port", port)
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: app.routes(),
 	}
 
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	if err != nil {
-		log.Panic(err)
+		log.Panic()
 	}
 
-	fmt.Printf("Starting logger service on PORT %s", port)
 }
 
 func connectToMongo() (*mongo.Client, error) {
@@ -76,5 +73,6 @@ func connectToMongo() (*mongo.Client, error) {
 		return nil, err
 	}
 
+	log.Println("Successfully connect to mongodb")
 	return connection, nil
 }

@@ -14,7 +14,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
-const port = "8081"
+const port = "8080"
 
 var tryCounts int64
 
