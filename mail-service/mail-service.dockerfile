@@ -6,4 +6,6 @@ RUN mkdir /app
 # Copy the built binary from the builder stage to the runtime image
 COPY mailerApp /app
 
+COPY templates /templates
+
 CMD ["/app/mailerApp"]
